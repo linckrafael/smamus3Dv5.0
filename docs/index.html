@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estacionamento SMAMUS</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f0f2f5;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+    h2 {
+      margin: 20px 0 10px;
+      text-align: center;
+      color: #333;
+    }
+    #contador { margin-bottom: 15px; font-weight: bold; color: #555; }
+    .wrapper {
+      width: 100%; max-width: 900px; padding: 10px; display: flex; justify-content: center;
+    }
+    #estacionamento {
+      position: relative;
+      width: 100%;
+      padding-top: 100%;
+      background-image: url('estacionamento_800x800.png');
+      background-size: cover;
+      background-position: center;
+      border: 2px solid #333;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .vaga {
+      position: absolute;
+      width: 5%;
+      height: 2.5%;
+      background-color: rgba(0, 200, 0, 0.5);
+      border: 1px solid #000;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7vw;
+      font-weight: bold;
+      color: #fff;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+      user-select: none;
+      transform-origin: center center;
+      transition: background-color 0.3s ease;
+    }
+    .vaga.ocupada {
+      background-color: rgba(200, 0, 0, 0.7);
+      background-image: url('https://cdn-icons-png.flaticon.com/512/744/744465.png');
+      background-size: cover;
+      background-position: center;
+      color: transparent;
+    }
+    .vaga.vaga-policia-ocupada {
+      background-color: #d3d3d3;
+      background-image: url('https://cdn-icons-png.flaticon.com/512/3433/3433376.png');
+      background-size: cover;
+      background-position: center;
+      color: transparent;
+    }
+    .vaga.vaga-azul-livre {
+      background-color: rgba(0, 0, 200, 0.5);
+    }
+    #admin-access-container {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 1000;
+    }
+    .admin-buttons-centered {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 20px;
+      width: 100%;
+      max-width: 900px;
+    }
+    .button-style {
+      padding: 8px 12px;
+      font-size: 14px;
+      cursor: pointer;
+      border: none;
+      border-radius: 5px;
+      color: white;
+      background-color: #3CB371;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      transition: background-color 0.3s ease, transform 0.2s ease;
+    }
+    .button-style:hover {
+      background-color: #008000;
+      transform: translateY(-2px);
+    }
+    .hidden { display: none !important; }
+    .legenda {
+      margin-top: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+      text-align: center;
+    }
+    .legenda-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+    }
+    .legenda-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 5px;
+      border: 1px solid #000;
+      background-size: cover;
+      background-position: center;
+    }
+    .livre { background-color: rgba(0, 200, 0, 0.5); }
+    .ocupada { background-image: url('https://cdn-icons-png.flaticon.com/512/744/744465.png'); background-color: rgba(200,0,0,0.7); }
+    .especial-livre { background-color: rgba(0, 0, 200, 0.5); }
+    .especial-ocupada { background-color: #d3d3d3; background-image: url('https://cdn-icons-png.flaticon.com/512/3433/3433376.png'); }
+    @media (max-width: 600px) {
+      .legenda { flex-direction: column; gap: 10px; }
+      #admin-access-container { position: static; margin-top: 10px; margin-bottom: 10px; text-align: center; }
+      .admin-buttons-centered { margin-bottom: 10px; }
+      .button-style { font-size: 12px; padding: 6px 8px; }
+    }
+  </style>
+</head>
+<body>
+  <h2>Estacionamento SMAMUS</h2>
+  <div id="contador">Total: 0 | Ocupadas: 0 | Livres: 0</div>
+  <div id="admin-access-container">
+    <button id="admin-mode-btn" class="button-style">Modo Administrador</button>
+  </div>
+  <div id="admin-buttons-wrapper" class="admin-buttons-centered hidden">
+    <button id="user-mode-btn" class="button-style">Modo Usuário</button>
+    <button id="selecionar-todas" class="admin-button button-style hidden">Selecionar Todas</button>
+    <button id="deselecionar-todas" class="admin-button button-style hidden">Limpar Todas</button>
+    <button id="criar-vaga" class="admin-button button-style hidden">Criar Vaga</button>
+    <button id="apagar-vaga" class="admin-button button-style hidden">Apagar Vaga</button>
+    <button id="mover-vaga" class="admin-button button-style hidden">Mover/Rotacionar</button>
+  </div>
+  <div class="wrapper"><div id="estacionamento"></div></div>
+  <div class="legenda">
+    <div class="legenda-item">
+      <div class="legenda-icon livre"></div>
+      <span>Vaga Livre</span>
+    </div>
+    <div class="legenda-item">
+      <div class="legenda-icon ocupada"></div>
+      <span>Vaga Ocupada</span>
+    </div>
+    <div class="legenda-item">
+      <div class="legenda-icon especial-livre"></div>
+      <span>Vaga Especial Livre</span>
+    </div>
+    <div class="legenda-item">
+      <div class="legenda-icon especial-ocupada"></div>
+      <span>Vaga Especial Ocupada</span>
+    </div>
+  </div>
+  <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDvgoGXBnFZbXi28SuSnQlx8mIN6Ebsflk",
+      authDomain: "estacionamentosmamus.firebaseapp.com",
+      databaseURL: "https://estacionamentosmamus-default-rtdb.firebaseio.com",
+      projectId: "estacionamentosmamus",
+      storageBucket: "estacionamentosmamus.appspot.com",
+      messagingSenderId: "864410096092",
+      appId: "1:864410096092:web:c8f039da393d4130bb7f19",
+    };
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    const vagasRef = database.ref('vagas');
+    const container = document.getElementById('estacionamento');
+    const contador = document.getElementById('contador');
+    const adminAccessBtn = document.getElementById('admin-mode-btn');
+    const adminButtonsWrapper = document.getElementById('admin-buttons-wrapper');
+    const allAdminButtons = adminButtonsWrapper.querySelectorAll('button');
+    const userModeBtn = document.getElementById('user-mode-btn');
+    let isAdminMode = false;
+    let isMoveMode = false;
+    let selectedAction = null;
+    let vagas = [];
+    const adminPassword = "admin123";
+
+    function toggleAdminButtonsWrapper(show) {
+        if (show) adminButtonsWrapper.classList.remove('hidden');
+        else adminButtonsWrapper.classList.add('hidden');
+    }
+
+    function toggleIndividualAdminButtons(show) {
+      allAdminButtons.forEach(button => {
+        if (button.id === 'user-mode-btn') {
+            button.classList.remove('hidden');
+        } else {
+            show ? button.classList.remove('hidden') : button.classList.add('hidden');
+        }
+      });
+    }
+
+    function renderVagas() {
+      container.innerHTML = '';
+      vagas.forEach(v => {
+        const div = document.createElement('div');
+        div.className = 'vaga';
+        if (v.ocupada) {
+          if (v.id === 'V15' || v.id === 'V16') div.classList.add('vaga-policia-ocupada');
+          else div.classList.add('ocupada');
+        } else {
+          if (v.id === 'V15' || v.id === 'V16') div.classList.add('vaga-azul-livre');
+        }
+        div.style.top = v.top + '%';
+        div.style.left = v.left + '%';
+        div.style.transform = `rotate(${v.rotate}deg)`;
+        div.textContent = v.ocupada ? '' : v.id;
+        div.addEventListener('click', () => {
+          if (isAdminMode) {
+            if (selectedAction === 'delete') {
+              vagasRef.child(v.id).remove();
+              selectedAction = null;
+            } else {
+              vagasRef.child(v.id).update({ ocupada: !v.ocupada });
+            }
+          }
+        });
+        if (isAdminMode && isMoveMode) {
+          let isDragging = false;
+          let startX, startY, initialTop, initialLeft, initialRotate;
+          div.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            startX = e.clientX;
+            startY = e.clientY;
+            initialTop = v.top;
+            initialLeft = v.left;
+            initialRotate = v.rotate;
+            isDragging = true;
+            const isRotating = e.shiftKey;
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+            function onMouseMove(ev) {
+              if (!isDragging) return;
+              const deltaX = ev.clientX - startX;
+              const deltaY = ev.clientY - startY;
+              const rect = container.getBoundingClientRect();
+              const percentX = (deltaX / rect.width) * 100;
+              const percentY = (deltaY / rect.height) * 100;
+              if (isRotating) {
+                const newRotate = initialRotate + percentX * 2;
+                vagasRef.child(v.id).update({ rotate: newRotate });
+              } else {
+                const newTop = Math.min(Math.max(initialTop + percentY, 0), 100);
+                const newLeft = Math.min(Math.max(initialLeft + percentX, 0), 100);
+                vagasRef.child(v.id).update({ top: newTop, left: newLeft });
+              }
+            }
+            function onMouseUp() {
+              isDragging = false;
+              document.removeEventListener('mousemove', onMouseMove);
+              document.removeEventListener('mouseup', onMouseUp);
+            }
+          });
+        }
+        container.appendChild(div);
+      });
+      atualizarContador();
+    }
+
+    function atualizarContador() {
+      const total = vagas.length;
+      const ocupadas = vagas.filter(v => v.ocupada).length;
+      contador.textContent = `Total: ${total} | Ocupadas: ${ocupadas} | Livres: ${total - ocupadas}`;
+    }
+
+    vagasRef.on('value', (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        vagas = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+      } else {
+        vagas = [];
+      }
+      renderVagas();
+    });
+
+    adminAccessBtn.addEventListener('click', () => {
+      const senha = prompt("Digite a senha do administrador:");
+      if (senha === adminPassword) {
+        isAdminMode = true;
+        alert("Modo Administrador ativado.");
+        adminAccessBtn.classList.add('hidden');
+        toggleAdminButtonsWrapper(true);
+        toggleIndividualAdminButtons(true);
+        renderVagas();
+      } else {
+        alert("Senha incorreta!");
+      }
+    });
+
+    userModeBtn.addEventListener('click', () => {
+      isAdminMode = false;
+      isMoveMode = false;
+      selectedAction = null;
+      adminAccessBtn.classList.remove('hidden');
+      toggleAdminButtonsWrapper(false);
+      toggleIndividualAdminButtons(false);
+      renderVagas();
+    });
+
+    document.getElementById('selecionar-todas').addEventListener('click', () => {
+      if (!isAdminMode) return;
+      vagas.forEach(v => vagasRef.child(v.id).update({ ocupada: true }));
+    });
+
+    document.getElementById('deselecionar-todas').addEventListener('click', () => {
+      if (!isAdminMode) return;
+      vagas.forEach(v => vagasRef.child(v.id).update({ ocupada: false }));
+    });
+
+    document.getElementById('criar-vaga').addEventListener('click', () => {
+      if (!isAdminMode) return;
+      const novaId = prompt('ID da nova vaga:');
+      if (!novaId) return;
+      vagasRef.child(novaId).set({ top: 10, left: 10, rotate: 0, ocupada: false });
+    });
+
+    document.getElementById('apagar-vaga').addEventListener('click', () => {
+      if (!isAdminMode) return;
+      selectedAction = 'delete';
+      alert('Clique na vaga que deseja apagar.');
+    });
+
+    document.getElementById('mover-vaga').addEventListener('click', () => {
+      if (!isAdminMode) return;
+      isMoveMode = !isMoveMode;
+      alert(isMoveMode ? 'Modo mover/rotacionar ativado. (Segure SHIFT para rotacionar)' : 'Modo mover/rotacionar desativado.');
+      renderVagas();
+    });
+
+    toggleAdminButtonsWrapper(false);
+    adminAccessBtn.classList.remove('hidden');
+  </script>
+</body>
+</html>
