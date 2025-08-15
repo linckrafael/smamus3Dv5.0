@@ -154,8 +154,8 @@
   <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
   
   <!-- Babylon.js Scripts -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/babylonjs/6.0.0/babylon.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/babylonjs/6.0.0/loaders/babylonjs.loaders.min.js"></script>
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
 
   <script>
     // Firebase Configuration
@@ -203,8 +203,9 @@
       camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/2, Math.PI/3, 50, BABYLON.Vector3.Zero(), scene);
       camera.setTarget(BABYLON.Vector3.Zero());
       
-      // Attach controls to canvas
-      scene.activeCamera.attachControls(canvas, true);
+      // Set as active camera and attach controls
+      scene.activeCamera = camera;
+      camera.attachControls(canvas, true);
 
       // Lighting
       const hemisphericLight = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
@@ -214,7 +215,11 @@
       directionalLight.position = new BABYLON.Vector3(20, 40, 20);
       directionalLight.intensity = 0.8;
 
-      // Load the parking lot model
+      // Create basic scene first to ensure something renders
+      console.log("Inicializando cenário básico...");
+      createFallbackGround();
+
+      // Then try to load the parking lot model
       loadParkingModel();
 
       // Start render loop
@@ -241,7 +246,9 @@
     }
 
     function loadParkingModel() {
-      // Try to load your 3D model first
+      // Try to load your 3D model as an enhancement over the basic scene
+      console.log("Tentando carregar modelo 3D...");
+      
       BABYLON.SceneLoader.ImportMeshAsync("", "https://linckrafael.github.io/smamus3Dv5.0/", "parking.glb", scene)
         .then((result) => {
           console.log("Modelo carregado com sucesso!", result);
@@ -249,48 +256,18 @@
           if (parkingModel) {
             parkingModel.scaling = new BABYLON.Vector3(1, 1, 1);
             parkingModel.position = new BABYLON.Vector3(0, 0, 0);
+            loadingScreen.textContent = "Modelo 3D carregado!";
           }
-          
-          loadingScreen.style.display = 'none';
-          loadVagasFromFirebase();
         })
         .catch((error) => {
-          console.error("Erro ao carregar modelo:", error);
-          console.log("Tentando arquivos alternativos...");
-          
-          // Try alternative file names
-          const alternativeFiles = ["model.glb", "estacionamento.glb", "parking_lot.glb"];
-          let fileIndex = 0;
-          
-          function tryNextFile() {
-            if (fileIndex >= alternativeFiles.length) {
-              console.log("Nenhum modelo encontrado, criando cenário básico");
-              createFallbackGround();
-              loadVagasFromFirebase();
-              return;
-            }
-            
-            const fileName = alternativeFiles[fileIndex];
-            console.log(`Tentando carregar: ${fileName}`);
-            
-            BABYLON.SceneLoader.ImportMeshAsync("", "https://linckrafael.github.io/smamus3Dv5.0/", fileName, scene)
-              .then((result) => {
-                console.log(`Modelo ${fileName} carregado com sucesso!`);
-                parkingModel = result.meshes[0];
-                if (parkingModel) {
-                  parkingModel.scaling = new BABYLON.Vector3(1, 1, 1);
-                  parkingModel.position = new BABYLON.Vector3(0, 0, 0);
-                }
-                loadingScreen.style.display = 'none';
-                loadVagasFromFirebase();
-              })
-              .catch(() => {
-                fileIndex++;
-                tryNextFile();
-              });
-          }
-          
-          tryNextFile();
+          console.log("Modelo 3D não encontrado, usando cenário básico:", error);
+          loadingScreen.textContent = "Usando cenário básico";
+        })
+        .finally(() => {
+          // Always load vagas regardless of model loading success
+          setTimeout(() => {
+            loadVagasFromFirebase();
+          }, 1000);
         });
     }
 
