@@ -154,8 +154,8 @@
   <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
   
   <!-- Babylon.js Scripts -->
-  <script src="https://cdn.babylonjs.com/babylon.js"></script>
-  <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babylonjs/5.0.0/babylon.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babylonjs/5.0.0/loaders/babylonjs.loaders.min.js"></script>
 
   <script>
     // Firebase Configuration
@@ -195,80 +195,106 @@
 
     // Initialize Babylon.js
     function initBabylon() {
-      engine = new BABYLON.Engine(canvas, true);
-      scene = new BABYLON.Scene(engine);
-      scene.clearColor = new BABYLON.Color3(0.2, 0.2, 0.3);
-
-      // Camera
-      camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/2, Math.PI/3, 50, BABYLON.Vector3.Zero(), scene);
-      camera.setTarget(BABYLON.Vector3.Zero());
+      console.log("Iniciando Babylon.js...");
       
-      // Set as active camera and attach controls
-      scene.activeCamera = camera;
-      camera.attachControls(canvas, true);
+      try {
+        engine = new BABYLON.Engine(canvas, true);
+        console.log("Engine criado");
+        
+        scene = new BABYLON.Scene(engine);
+        scene.clearColor = new BABYLON.Color3(0.2, 0.2, 0.3);
+        console.log("Scene criado");
 
-      // Lighting
-      const hemisphericLight = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
-      hemisphericLight.intensity = 0.7;
-      
-      const directionalLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -1, -1), scene);
-      directionalLight.position = new BABYLON.Vector3(20, 40, 20);
-      directionalLight.intensity = 0.8;
-
-      // Create basic scene first to ensure something renders
-      console.log("Inicializando cenário básico...");
-      createFallbackGround();
-
-      // Then try to load the parking lot model
-      loadParkingModel();
-
-      // Start render loop
-      engine.runRenderLoop(() => {
-        scene.render();
-      });
-
-      // Handle resize
-      window.addEventListener('resize', () => {
-        engine.resize();
-      });
-
-      // Handle clicks
-      scene.onPointerObservable.add((pointerInfo) => {
-        if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERUP) {
-          if (pointerInfo.pickInfo.hit) {
-            const pickedMesh = pointerInfo.pickInfo.pickedMesh;
-            if (pickedMesh && pickedMesh.userData && pickedMesh.userData.vagaId) {
-              handleVagaClick(pickedMesh.userData.vagaId);
+        // Camera
+        camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/2, Math.PI/3, 50, BABYLON.Vector3.Zero(), scene);
+        camera.setTarget(BABYLON.Vector3.Zero());
+        console.log("Camera criado");
+        
+        // Try different methods to attach controls
+        try {
+          camera.attachControls(canvas);
+          console.log("Controles anexados - método 1");
+        } catch (e) {
+          try {
+            camera.attachControls(canvas, true);
+            console.log("Controles anexados - método 2");
+          } catch (e2) {
+            try {
+              camera.attachControl(canvas);
+              console.log("Controles anexados - método 3");
+            } catch (e3) {
+              console.warn("Não foi possível anexar controles:", e3);
             }
           }
         }
-      });
+
+        // Lighting
+        const hemisphericLight = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+        hemisphericLight.intensity = 0.7;
+        console.log("Luz hemisférica criada");
+        
+        const directionalLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -1, -1), scene);
+        directionalLight.position = new BABYLON.Vector3(20, 40, 20);
+        directionalLight.intensity = 0.8;
+        console.log("Luz direcional criada");
+
+        // Create basic scene first to ensure something renders
+        console.log("Criando cenário básico...");
+        createFallbackGround();
+
+        // Then try to load the parking lot model
+        loadParkingModel();
+
+        // Start render loop
+        engine.runRenderLoop(() => {
+          scene.render();
+        });
+        console.log("Loop de renderização iniciado");
+
+        // Handle resize
+        window.addEventListener('resize', () => {
+          engine.resize();
+        });
+
+        // Handle clicks - using older method for compatibility
+        scene.actionManager = new BABYLON.ActionManager(scene);
+        console.log("Sistema de cliques configurado");
+        
+      } catch (error) {
+        console.error("Erro ao inicializar Babylon.js:", error);
+        loadingScreen.textContent = "Erro ao inicializar 3D: " + error.message;
+      }
     }
 
     function loadParkingModel() {
       // Try to load your 3D model as an enhancement over the basic scene
       console.log("Tentando carregar modelo 3D...");
       
-      BABYLON.SceneLoader.ImportMeshAsync("", "https://linckrafael.github.io/smamus3Dv5.0/", "parking.glb", scene)
-        .then((result) => {
-          console.log("Modelo carregado com sucesso!", result);
-          parkingModel = result.meshes[0];
-          if (parkingModel) {
+      // Use the older method for compatibility
+      BABYLON.SceneLoader.ImportMesh("", "https://linckrafael.github.io/smamus3Dv5.0/", "modelo.glb", scene, 
+        (meshes) => {
+          console.log("Modelo carregado com sucesso!", meshes);
+          if (meshes && meshes.length > 0) {
+            parkingModel = meshes[0];
             parkingModel.scaling = new BABYLON.Vector3(1, 1, 1);
             parkingModel.position = new BABYLON.Vector3(0, 0, 0);
             loadingScreen.textContent = "Modelo 3D carregado!";
           }
-        })
-        .catch((error) => {
-          console.log("Modelo 3D não encontrado, usando cenário básico:", error);
-          loadingScreen.textContent = "Usando cenário básico";
-        })
-        .finally(() => {
-          // Always load vagas regardless of model loading success
           setTimeout(() => {
             loadVagasFromFirebase();
           }, 1000);
-        });
+        },
+        (progress) => {
+          console.log("Progresso do carregamento:", progress);
+        },
+        (error) => {
+          console.log("Modelo 3D não encontrado, usando cenário básico:", error);
+          loadingScreen.textContent = "Usando cenário básico";
+          setTimeout(() => {
+            loadVagasFromFirebase();
+          }, 1000);
+        }
+      );
     }
 
     function createFallbackGround() {
@@ -331,53 +357,64 @@
     }
 
     function createVaga3D(vaga) {
-      // Create a box for the parking space
-      const vagaBox = BABYLON.MeshBuilder.CreateBox(vaga.id, {width: 2.5, height: 0.1, depth: 4}, scene);
-      
-      // Position based on the original 2D coordinates, converted to 3D space
-      const x = (vaga.left - 50) * 0.4; // Convert percentage to 3D coordinates
-      const z = (vaga.top - 50) * 0.3;
-      vagaBox.position = new BABYLON.Vector3(x, 0.05, z);
-      
-      // Rotation
-      vagaBox.rotation.y = BABYLON.Tools.ToRadians(vaga.rotate || 0);
+      try {
+        // Create a box for the parking space
+        const vagaBox = BABYLON.MeshBuilder.CreateBox(vaga.id, {width: 2.5, height: 0.1, depth: 4}, scene);
+        
+        // Position based on the original 2D coordinates, converted to 3D space
+        const x = (vaga.left - 50) * 0.4; // Convert percentage to 3D coordinates
+        const z = (vaga.top - 50) * 0.3;
+        vagaBox.position = new BABYLON.Vector3(x, 0.05, z);
+        
+        // Rotation
+        vagaBox.rotation.y = BABYLON.Tools.ToRadians(vaga.rotate || 0);
 
-      // Material based on status
-      const material = new BABYLON.StandardMaterial(vaga.id + "_mat", scene);
-      
-      if (vaga.ocupada) {
-        if (vaga.id === 'V15' || vaga.id === 'V16') {
-          material.diffuseColor = new BABYLON.Color3(0.8, 0.8, 0.8); // Gray for police
+        // Material based on status
+        const material = new BABYLON.StandardMaterial(vaga.id + "_mat", scene);
+        
+        if (vaga.ocupada) {
+          if (vaga.id === 'V15' || vaga.id === 'V16') {
+            material.diffuseColor = new BABYLON.Color3(0.8, 0.8, 0.8); // Gray for police
+          } else {
+            material.diffuseColor = new BABYLON.Color3(0.8, 0, 0); // Red for occupied
+          }
         } else {
-          material.diffuseColor = new BABYLON.Color3(0.8, 0, 0); // Red for occupied
+          if (vaga.id === 'V15' || vaga.id === 'V16') {
+            material.diffuseColor = new BABYLON.Color3(0, 0, 0.8); // Blue for special
+          } else {
+            material.diffuseColor = new BABYLON.Color3(0, 0.8, 0); // Green for free
+          }
         }
-      } else {
-        if (vaga.id === 'V15' || vaga.id === 'V16') {
-          material.diffuseColor = new BABYLON.Color3(0, 0, 0.8); // Blue for special
-        } else {
-          material.diffuseColor = new BABYLON.Color3(0, 0.8, 0); // Green for free
+        
+        material.alpha = 0.7;
+        vagaBox.material = material;
+
+        // Add user data for identification
+        vagaBox.metadata = { vagaId: vaga.id };
+
+        // Add click action
+        vagaBox.actionManager = new BABYLON.ActionManager(scene);
+        vagaBox.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPickTrigger, function() {
+          handleVagaClick(vaga.id);
+        }));
+
+        // Add text label for free spots
+        if (!vaga.ocupada) {
+          createVagaLabel(vaga, vagaBox.position);
         }
-      }
-      
-      material.alpha = 0.7;
-      vagaBox.material = material;
 
-      // Add user data for identification
-      vagaBox.userData = { vagaId: vaga.id };
+        // Store mesh reference
+        vagaMeshes.set(vaga.id, vagaBox);
 
-      // Add text label
-      if (!vaga.ocupada) {
-        createVagaLabel(vaga, vagaBox.position);
-      }
-
-      // Store mesh reference
-      vagaMeshes.set(vaga.id, vagaBox);
-
-      // Add glow effect for admin mode
-      if (isAdminMode) {
-        vagaBox.renderOutline = true;
-        vagaBox.outlineColor = new BABYLON.Color3(1, 1, 0);
-        vagaBox.outlineWidth = 0.02;
+        // Add glow effect for admin mode
+        if (isAdminMode) {
+          vagaBox.renderOutline = true;
+          vagaBox.outlineColor = new BABYLON.Color3(1, 1, 0);
+          vagaBox.outlineWidth = 0.02;
+        }
+        
+      } catch (error) {
+        console.error("Erro ao criar vaga 3D:", vaga.id, error);
       }
     }
 
